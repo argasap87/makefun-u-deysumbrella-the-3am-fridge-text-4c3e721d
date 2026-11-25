@@ -32,13 +32,23 @@ if (INVISIBLE.test(LINE)) {
   process.exit(1);
 }
 
+// Reviser gate (second session): a lock-screen line must not be padded —
+// reject leading/trailing whitespace so no char of the 140 budget is wasted.
+if (LINE !== LINE.trim()) {
+  console.error("gate failed: line must not start or end with whitespace");
+  process.exit(1);
+}
+
 mkdirSync("/output", { recursive: true });
 writeFileSync("/output/entry.txt", LINE, "utf8");
 
 // Read-back: confirm the file on disk is byte-identical to LINE
 // before declaring success — a truncated or altered write must not pass.
-if (readFileSync("/output/entry.txt", "utf8") !== LINE) {
-  console.error("gate failed: /output/entry.txt does not match the line");
+// Byte-level comparison (not just decoded strings) so a stray BOM or
+// non-canonical UTF-8 encoding cannot slip through.
+const written = readFileSync("/output/entry.txt");
+if (!written.equals(Buffer.from(LINE, "utf8"))) {
+  console.error("gate failed: /output/entry.txt bytes do not match the line");
   process.exit(1);
 }
 console.log(`wrote /output/entry.txt (${chars} chars)`);
